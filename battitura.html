@@ -1,0 +1,1645 @@
+<html>
+<head>
+<script src="https://code.jquery.com/jquery-3.5.1.js" integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc=" crossorigin="anonymous"></script>
+<style>
+body {
+	font-family: cursive;
+}
+
+#divparoleout {
+  width; 100%;
+  max-width: 800px;
+  height: 90px;
+  border: 1px solid;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+#divopzioni {
+  margin-bottom: 10px;
+}
+
+#divparole {
+  padding: 10px;
+  font-size: x-large;
+  position: relative;
+  top: -10;
+}
+
+#inputparola {
+	margin-top: 10px;
+	padding: 10px;
+	font-family: cursive;
+	font-size: x-large;
+}
+
+.parola {
+  padding: 5px;
+  float: left;
+}
+
+#tempo {
+  margin-top: 10px;
+  margin-left: 10px;
+  padding: 10px;
+  border-radius: 5px;
+  font-size: x-large;
+  float: left;
+  background-color: black;
+  color: white;
+  width: 60px;
+  text-align: center;
+}
+
+#ricarica {
+  margin-top: 15px;
+  margin-left: 10px;
+  float: left;
+}
+
+.corretta {
+	color: green;
+}
+
+.errata {
+	color: red;
+}
+.highlight {
+	background: lightgray;
+    color: black;
+}
+.highlight-wrong {
+	background: red;
+}
+#risultati {
+  margin-top: 10px;
+}
+
+td,th {
+  padding: 3px;
+  border: 1px solid;
+  border-color: lightgrey;
+  text-align: center;
+}
+
+.letterebianche {
+    color: white;
+}
+
+</style>
+</head>
+<body>
+<div style="font-size: 30px; margin-bottom: 20px">
+TEST DI BATTITURA
+</div>
+<div id="divopzioni">
+<label for="maxtempo">Secondi </label><input type="text" id="maxtempo" value="60" style="width:40px">
+<label for="minparola">Lung parola min </label><input type="text" id="minparola" value="" style="width:30px">
+<label for="maxparola">max </label><input type="text" id="maxparola" value="" style="width:30px">
+<label for="iniupper">Anche maiuscole</label><input type="checkbox" id="iniupper" style="position: relative; top: 5px; width: 20px; height: 20px">
+<label for="noaccentate">Senza accentate</label><input type="checkbox" id="noaccentate" style="position: relative; top: 5px; width: 20px; height: 20px">
+<label for="diverse">Diverse</label><input type="checkbox" id="diverse" style="position: relative; top: 5px; width: 20px; height: 20px">
+</div>
+<div id="divparoleout">
+<div id="divparole"></div>
+</div>
+<div style="display: inline-block;">
+<div style="float:left">
+<input type="text" id="inputparola">
+</div>
+<div id="tempo"></div>
+<div id="ricarica">
+<input type="button" id="btnricarica" value="Nuovo" style="font-size: xx-large">
+<input type="checkbox" id="stesseparole" style="width: 20px; height: 20px" title="Stesse parole">
+<label for="stesseparole">Stesse parole</label>
+</div>
+</div>
+<div id="risultati" style="display: none">
+<div>Secondi: <span id="numsecondi"></span></div>
+<div>Parole corrette: <span id="numcorrette"></span></div>
+<div>Parole errate: <span id="numerrate"></span></div>
+<div>Battute: <span id="numlettere"></span></div>
+<div>Correzioni: <span id="numcorrezioni"></span></div>
+<div><a href="#" id="linkstat">Statistiche</a></div>
+</div>
+<div id="tablestatistiche" style="display: none">
+	<table>
+	<thead>
+	<tr>
+	<th><a href='#' id='colnum' class='colsort'>N. <span class="img"></span></a></th>
+	<th><a href='#' id='colparola' class='colsort'>parola <span class="img"></span></a></th>
+	<th><a href='#' id='colsecondi' class='colsort'>secondi <span class="img"></span></a></a></th>
+	<th><a href='#' id='colmedia' class='colsort'>media bps <span class="img"></span></a></a></th>
+	<th><a href='#' id='colcorr' class='colsort'>correzioni <span class="img"></span></a></a></th>
+	<th>digitato</th>
+	</tr>
+	</thead>
+	<tbody id="tablebodystatistiche">
+	</tbody>
+</div>
+
+</body>
+
+<script type="text/javascript">
+var parole = [];
+var parolacorrente = 0;
+var dataInizio = null;
+var dataTermine = null;
+var dataInizioLettera = null;
+var secondiTotali = 0;
+var interval = null;
+var lettere = 0;
+var correzioni = 0;
+var correzionilettera = 0;
+var fine=false;
+var statistiche = [];
+
+$(document).ready(function () {
+	inizializza();
+	
+	$("#inputparola").keyup(function(e) {
+		if (e.keyCode == 116 || fine) {
+			return;
+		}
+		if (e.keyCode == 8) {
+			correzioni++;
+			correzionilettera++;
+		}
+		if (dataInizio == null) {
+			dataInizio = new Date();
+			dataInizioLettera=new Date();
+			SetInterval();
+		}
+		if (dataInizioLettera == null) {
+			dataInizioLettera = new Date();
+		}
+		var curpar = $("[wordnr="+parolacorrente+"]");
+		if (e.keyCode == 32 || e.keyCode == 13) {
+			curpar.removeClass().addClass("parola");
+			var dataCur = new Date();
+			var dif = dataCur.getTime() - dataInizioLettera.getTime();
+			var secondilettera = dif / 1000;
+			if ($("#inputparola").val().trim() == parole[parolacorrente]) {
+				var title = "secondi: "+secondilettera.toString();
+				if (correzionilettera > 0) {
+					title += "\ncorrezioni: " + correzionilettera.toString();
+					curpar.attr("correzioni",correzionilettera);
+				}
+				curpar.addClass("corretta").attr("title",title);
+			} else {
+				var title = "digitato: "+$("#inputparola").val().trim()+"\nsecondi: "+secondilettera.toString();
+				curpar.addClass("errata").attr("title",title).attr("digitato",$("#inputparola").val().trim());
+			}
+			$("[wordnr="+parolacorrente+"]").html(parole[parolacorrente]);
+			curpar.attr("secondi",secondilettera);
+			dataInizioLettera = null;
+			correzionilettera = 0;
+			lettere+=$("#inputparola").val().length;
+			$("#inputparola").val("");
+			parolacorrente++;
+			$("[wordnr="+parolacorrente+"]").addClass("highlight");
+			var p = $("[wordnr="+parolacorrente+"]").position().top;
+			$("#divparole").css("top",p*-1);
+			var indice=parole.length;
+			if (parolacorrente+20 > parole.length) {
+				caricaparole(20,false);
+				stampaparole(false,indice);
+			}
+		} else if (e.keyCode == 27) { 
+			//ESC
+			fine=true;
+			$('#inputparola').attr('readonly', true); 
+			clearInterval(interval)
+			VisualizzaTotali();
+		} else {
+			if ($("#inputparola").val().trim() != parole[parolacorrente].substring(0, $("#inputparola").val().trim().length)) {
+				curpar.removeClass("highlight");
+				curpar.addClass("highlight-wrong");
+			} else {
+				curpar.removeClass("highlight-wrong");
+				curpar.addClass("highlight");
+				$("[wordnr="+parolacorrente+"]").html("<span class='letterebianche'>" + $("#inputparola").val() + "</span>" + parole[parolacorrente].substring($("#inputparola").val().length));
+			}
+		}
+		//VisualizzaTotali();
+	});
+	
+	$('#divparoleout').bind('mousewheel', function(e){
+		var top=parseInt($('#divparole').css("top"));
+        if (e.originalEvent.wheelDelta /120 > 0) {
+			top+=10;
+        }
+        else{
+            top-=10;
+        }
+		if (top >- 10) 
+		{ 
+			top=-10; 
+		}
+		console.log(top);
+        $("#divparole").css("top",top);
+    });
+	
+	$('#btnricarica').bind('click', function(e){
+		if ($("#minparola").val() != "" && $("#maxparola").val() != "" && parseInt($("#minparola").val()) > parseInt($("#maxparola").val())) {
+			alert("Minimo e massimo non coerenti");
+			return false;
+		}
+		inizializza();
+    });
+	
+	$('#linkstat').bind('click', function(e){
+		$('#tablestatistiche').toggle();
+    });
+	
+	$('.colsort').bind('click', function(e){
+		var id=$(this).attr("id");
+		var verso = $("#"+id).attr("verso");
+		if (verso == "desc") {
+			verso = "asc";
+		} else {
+			verso = "desc";
+		}
+		$("#"+id).attr("verso",verso);
+		if (id == "colnum") {
+			statistiche.sort(function (a, b) {
+				if (verso == "desc") {
+					return b.num - a.num;
+				} else {
+					return a.num - b.num;
+				}
+			});
+		} else if (id == "colparola") {
+			statistiche.sort(function (a, b) {
+				if (verso == "desc") {
+					return b.parola < a.parola ? -1 : 1;
+				} else {
+					return a.parola < b.parola ? -1 : 1;
+				}
+			});
+		} else if (id == "colsecondi") {
+			statistiche.sort(function (a, b) {
+				if (verso == "desc") {
+					return b.secondi - a.secondi;
+				} else {
+					return a.secondi - b.secondi;
+				}
+			});
+		} else if (id == "colmedia") {
+			statistiche.sort(function (a, b) {
+				if (verso == "desc") {
+					return b.media - a.media;
+				} else {
+					return a.media - b.media;
+				}
+			});
+		} else if (id == "colcorr") {
+			statistiche.sort(function (a, b) {
+				if (verso == "desc") {
+					return b.correzioni - a.correzioni;
+				} else {
+					return a.correzioni - b.correzioni;
+				}
+			});
+		}
+		$("#tablestatistiche .img").html("");
+		if (verso == "asc") {
+			$("#"+id+" .img").html("△");
+		} else {
+			$("#"+id+" .img").html("▽");
+		}
+		StampaStatistiche();
+	});
+
+});
+
+function inizializza() {
+	if ($("#stesseparole").is(":checked") == false) {
+		parole = [];
+		caricaparole(40,true);
+		stampaparole(true);
+	}
+	$("[wordnr="+parolacorrente+"]").html(parole[parolacorrente]);
+	$(".parola").removeClass().addClass("parola").attr("title","");
+	$("#tablestatistiche .img").html("");
+	clearInterval(interval);
+	parolacorrente = 0;
+	dataInizio = null;
+	dataTermine = null;
+	secondiTotali = 0;
+	interval = null;
+	lettere = 0;
+	correzioni = 0;
+	correzionilettera = 0;
+	fine=false;
+	statistiche=[];
+	$('#inputparola').val("").attr('readonly', false).focus();
+	$("#tempo").html(GetTime(secondiTotali));
+	$("#divparole").css("top",-10);
+	$("[wordnr="+parolacorrente+"]").addClass("highlight");
+	$("#risultati").hide();
+	$("#tablestatistiche").hide();
+}
+
+function stampaparole(azzera,indice) {
+	if (azzera) {
+		$('#divparole').html("");
+	}
+	if (indice == undefined) {
+		indice=0;
+	}
+	for (i=indice; i<parole.length; i++ ) {
+		var div=$('#divparole');
+		div.append("<div class='parola' wordnr='"+i+"'>"+parole[i]+"</div>");
+	}
+}
+
+function SetInterval() {
+	interval = setInterval(function () {
+		
+		var dataCur = new Date();
+		var dif = dataCur.getTime() - dataInizio.getTime();
+		var Seconds_from_T1_to_T2 = dif / 1000;
+		secondiTotali = Math.abs(Seconds_from_T1_to_T2);
+
+		//var distance = secondiTotali * 1000;
+		//if ($("#maxtempo").val() != "") {
+		//	distance = (parseInt($("#maxtempo").val()) - secondiTotali) * 1000;
+		//}
+		//var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+		//var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+		//var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+		//$("#tempo").html(minutes + ":" + seconds.toString().padStart(2, '0'));
+
+		if ($("#maxtempo").val() != "") {
+			if (secondiTotali >= parseInt($("#maxtempo").val())) {
+				secondiTotali = parseInt($("#maxtempo").val());
+				fine=true;
+				$('#inputparola').attr('readonly', true); 
+				clearInterval(interval)
+				VisualizzaTotali();
+			}
+		}
+
+		$("#tempo").html(GetTime(secondiTotali));
+		
+	}, 1000);
+}
+
+function GetTime(secondi) {
+	var distance = secondi * 1000;
+	if ($("#maxtempo").val() != "") {
+		distance = (parseInt($("#maxtempo").val()) - secondiTotali) * 1000;
+	}
+	var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+	var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+	var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+	return minutes + ":" + seconds.toString().padStart(2, '0');
+}
+
+
+function VisualizzaTotali() {
+	$("#numsecondi").html(secondiTotali);
+	$("#numcorrette").html($(".corretta").length);
+	$("#numerrate").html($(".errata").length);
+	$("#numlettere").html(lettere);
+	$("#numcorrezioni").html(correzioni);
+	$("#risultati").show();
+	$.each($(".parola.corretta,.parola.errata"), function( index, value ) {
+		var secondi=value.getAttribute("secondi");
+		var digitato=value.getAttribute("digitato");
+		if(digitato == null) digitato="";
+		statistiche.push({
+			num: index+1,
+			parola:value.textContent,
+			secondi:secondi,
+			className:value.className,
+			correzioni:value.getAttribute("correzioni"),
+			media:value.textContent.length/parseFloat(secondi),
+			digitato:digitato
+		});
+	});
+	StampaStatistiche();
+}
+
+function StampaStatistiche() {
+	var div=$("#tablebodystatistiche");
+	div.html("");
+	statistiche.forEach(function(item) {
+		riga = "<tr>";
+		riga+="<td>" + item.num + "</td>";
+		riga+="<td><div class='" + item.className + "'>" + item.parola + "</div></td>";
+		riga+="<td>" + item.secondi + "</td>";
+		riga+="<td>" + item.media.toFixed(2) + "</td>";
+		var corr=0;
+		if(item.correzioni!=null) {
+			corr=item.correzioni;
+		}
+		riga+="<td>" + corr + "</td>";
+		riga+="<td>" + item.digitato + "</td>";
+		riga+="</tr>";
+		div.append(riga);
+	});
+
+}
+
+function caricaparole(num,azzera) {
+	totparole = [
+	"a",
+"abbandonare",
+"abbastanza",
+"abitare",
+"abito",
+"accadere",
+"accanto",
+"accendere",
+"accettare",
+"accogliere",
+"accompagnare",
+"accordo",
+"accorgersi",
+"acqua",
+"addirittura",
+"addosso",
+"adesso",
+"affare",
+"affatto",
+"affermare",
+"affrontare",
+"aggiungere",
+"ah",
+"aiutare",
+"aiuto",
+"albergo",
+"albero",
+"alcuno",
+"allontanare",
+"allora",
+"almeno",
+"alto",
+"altro",
+"alzare",
+"amare",
+"ambiente",
+"americano",
+"amico",
+"ammazzare",
+"ammettere",
+"amore",
+"ampio",
+"anche",
+"ancora",
+"andare",
+"angolo",
+"anima",
+"animale",
+"animo",
+"anno",
+"annunciare",
+"antico",
+"anzi",
+"apparire",
+"appartenere",
+"appena",
+"appoggiare",
+"appunto",
+"aprire",
+"argomento",
+"aria",
+"arma",
+"armare",
+"arrestare",
+"arrivare",
+"arte",
+"articolo",
+"ascoltare",
+"aspettare",
+"aspetto",
+"assai",
+"assicurare",
+"assistere",
+"assoluto",
+"assumere",
+"attaccare",
+"atteggiamento",
+"attendere",
+"attento",
+"attenzione",
+"attesa",
+"attimo",
+"attività",
+"atto",
+"attore",
+"attorno",
+"attraversare",
+"attuale",
+"aumentare",
+"automobile",
+"autore",
+"autorità",
+"avanti",
+"avanzare",
+"avere",
+"avvenire",
+"avvertire",
+"avvicinare",
+"avvocato",
+"azione",
+"azzurro",
+"baciare",
+"badare",
+"bagno",
+"bambina",
+"bambino",
+"base",
+"basso",
+"bastare",
+"battaglia",
+"battere",
+"bellezza",
+"bello",
+"bene",
+"bere",
+"bestia",
+"bianco",
+"biondo",
+"bisognare",
+"bisogno",
+"bocca",
+"bosco",
+"braccio",
+"bravo",
+"breve",
+"bruciare",
+"brutto",
+"buio",
+"buono",
+"buttare",
+"cadere",
+"caffè",
+"calcio",
+"caldo",
+"cambiare",
+"camera",
+"camminare",
+"campagna",
+"campo",
+"cane",
+"cantare",
+"capace",
+"capello",
+"capire",
+"capitare",
+"capo",
+"carattere",
+"caratteristico",
+"carne",
+"caro",
+"carta",
+"casa",
+"caso",
+"cattivo",
+"cattolico",
+"causa",
+"cavallo",
+"celebrare",
+"centrale",
+"centro",
+"cercare",
+"certamente",
+"certo",
+"che",
+"chi",
+"chiamare",
+"chiaro",
+"chiave",
+"chiedere",
+"chiesa",
+"chilometro",
+"chissà",
+"chiudere",
+"ci",
+"ciascuno",
+"cielo",
+"cioè",
+"circa",
+"cittadino",
+"città",
+"civile",
+"civiltà",
+"ciò",
+"classe",
+"collina",
+"collo",
+"colore",
+"coloro",
+"colpa",
+"colpire",
+"colpo",
+"come",
+"cominciare",
+"commercio",
+"commissione",
+"comodo",
+"compagnia",
+"compagno",
+"compiere",
+"completamente",
+"comporre",
+"comprare",
+"comprendere",
+"comune",
+"comunicazione",
+"comunque",
+"con",
+"concedere",
+"concetto",
+"concludere",
+"condizione",
+"condurre",
+"confessare",
+"confronto",
+"congresso",
+"conoscenza",
+"conoscere",
+"conseguenza",
+"consentire",
+"conservare",
+"considerare",
+"consiglio",
+"contadino",
+"contare",
+"contatto",
+"contenere",
+"contento",
+"continuare",
+"continuo",
+"conto",
+"contrario",
+"contro",
+"controllo",
+"convincere",
+"coprire",
+"coraggio",
+"corpo",
+"corrente",
+"correre",
+"corsa",
+"corso",
+"cortile",
+"cosa",
+"coscienza",
+"costa",
+"costituire",
+"costringere",
+"costruire",
+"costruzione",
+"creare",
+"credere",
+"crescere",
+"crisi",
+"cristiano",
+"croce",
+"cucina",
+"cui",
+"cultura",
+"cuore",
+"cura",
+"da",
+"dare",
+"davanti",
+"davvero",
+"decidere",
+"decisione",
+"dedicare",
+"denaro",
+"dente",
+"dentro",
+"descrivere",
+"desiderare",
+"desiderio",
+"destino",
+"destro",
+"determinare",
+"di",
+"dichiarare",
+"dietro",
+"difendere",
+"difesa",
+"differenza",
+"difficile",
+"difficoltà",
+"diffondere",
+"dimenticare",
+"dimostrare",
+"dinanzi",
+"dio",
+"dipendere",
+"dire",
+"diretto",
+"direttore",
+"direzione",
+"dirigere",
+"diritto",
+"discorso",
+"discutere",
+"disporre",
+"disposizione",
+"distanza",
+"distinguere",
+"distruggere",
+"dito",
+"divenire",
+"diventare",
+"diverso",
+"divertire",
+"dividere",
+"dolce",
+"dolore",
+"domanda",
+"domandare",
+"domani",
+"domenica",
+"don",
+"donna",
+"dopo",
+"dormire",
+"dottore",
+"dove",
+"dovere",
+"dubbio",
+"dunque",
+"durante",
+"durare",
+"duro",
+"e",
+"eccellenza",
+"eccetera",
+"ecco",
+"economico",
+"effetto",
+"egli",
+"eh",
+"elemento",
+"elettrico",
+"elevare",
+"energia",
+"enorme",
+"entrare",
+"entro",
+"epoca",
+"eppure",
+"erba",
+"errore",
+"esame",
+"escludere",
+"esempio",
+"esercito",
+"esistere",
+"esperienza",
+"esporre",
+"espressione",
+"esprimere",
+"essa",
+"essere",
+"esso",
+"estate",
+"estendere",
+"estero",
+"estremo",
+"età",
+"europeo",
+"evitare",
+"fabbrica",
+"faccia",
+"facile",
+"fame",
+"famiglia",
+"famoso",
+"fantasia",
+"fatica",
+"fatto",
+"favore",
+"fede",
+"felice",
+"fenomeno",
+"ferire",
+"fermare",
+"fermo",
+"ferro",
+"festa",
+"fianco",
+"fiducia",
+"figlia",
+"figlio",
+"figura",
+"figurare",
+"film",
+"filo",
+"finalmente",
+"finché",
+"fine",
+"finestra",
+"finire",
+"fino",
+"fiore",
+"fissare",
+"fiume",
+"foglia",
+"folla",
+"fondare",
+"fondo",
+"forma",
+"formare",
+"fornire",
+"forse",
+"forte",
+"fortuna",
+"forza",
+"fra",
+"francese",
+"frase",
+"fratello",
+"freddo",
+"fresco",
+"fretta",
+"fronte",
+"frutto",
+"fuggire",
+"fumare",
+"funzione",
+"fuoco",
+"fuori",
+"futuro",
+"gamba",
+"gatto",
+"generale",
+"genere",
+"gente",
+"gesto",
+"gettare",
+"giallo",
+"giardino",
+"giocare",
+"gioco",
+"gioia",
+"giornale",
+"giornata",
+"giorno",
+"giovane",
+"giovanotto",
+"girare",
+"giro",
+"giudicare",
+"giudizio",
+"giugno",
+"giungere",
+"giustizia",
+"giusto",
+"già",
+"giù",
+"godere",
+"governo",
+"grado",
+"grande",
+"grave",
+"grazia",
+"grazie",
+"greco",
+"gridare",
+"grigio",
+"grosso",
+"gruppo",
+"guardare",
+"guardia",
+"guerra",
+"guidare",
+"gusto",
+"idea",
+"ieri",
+"il",
+"immaginare",
+"immagine",
+"imparare",
+"impedire",
+"imporre",
+"importante",
+"importanza",
+"importare",
+"impossibile",
+"impressione",
+"improvviso",
+"in",
+"incontrare",
+"indicare",
+"indietro",
+"industria",
+"industriale",
+"infatti",
+"infine",
+"inglese",
+"iniziare",
+"inizio",
+"innamorare",
+"inoltre",
+"insegnare",
+"insieme",
+"insistere",
+"insomma",
+"intanto",
+"intendere",
+"intenzione",
+"interessante",
+"interessare",
+"interesse",
+"internazionale",
+"interno",
+"intero",
+"intorno",
+"inutile",
+"invece",
+"inverno",
+"invitare",
+"io",
+"isola",
+"istante",
+"istituto",
+"italiano",
+"labbro",
+"lago",
+"lanciare",
+"largo",
+"lasciare",
+"latino",
+"lato",
+"latte",
+"lavorare",
+"lavoro",
+"legare",
+"legge",
+"leggere",
+"leggero",
+"lei",
+"lettera",
+"letto",
+"levare",
+"li",
+"liberare",
+"libero",
+"libertà",
+"libro",
+"limitare",
+"limite",
+"linea",
+"lingua",
+"lira",
+"lo",
+"lontano",
+"loro",
+"lotta",
+"luce",
+"lui",
+"luna",
+"lungo",
+"luogo",
+"là",
+"lì",
+"ma",
+"macchina",
+"madre",
+"maestro",
+"magari",
+"maggio",
+"maggiore",
+"malattia",
+"male",
+"mamma",
+"mancare",
+"mandare",
+"mangiare",
+"maniera",
+"mano",
+"mantenere",
+"mare",
+"marito",
+"massa",
+"massimo",
+"materia",
+"matrimonio",
+"mattina",
+"mattino",
+"medesimo",
+"medico",
+"medio",
+"meglio",
+"memoria",
+"meno",
+"mente",
+"mentre",
+"mercato",
+"meritare",
+"merito",
+"mese",
+"messa",
+"mestiere",
+"metro",
+"mettere",
+"metà",
+"mezzo",
+"mi",
+"migliore",
+"milione",
+"militare",
+"minimo",
+"ministro",
+"minore",
+"minuto",
+"mio",
+"misura",
+"moderno",
+"modo",
+"moglie",
+"molto",
+"momento",
+"mondo",
+"montagna",
+"monte",
+"morale",
+"morire",
+"morte",
+"mostrare",
+"motivo",
+"movimento",
+"muovere",
+"muro",
+"musica",
+"nascere",
+"nascondere",
+"natura",
+"naturale",
+"naturalmente",
+"nave",
+"nazionale",
+"nazione",
+"ne",
+"neanche",
+"necessario",
+"necessità",
+"nemico",
+"nemmeno",
+"neppure",
+"nero",
+"nessuno",
+"niente",
+"no",
+"nobile",
+"noi",
+"nome",
+"non",
+"nord",
+"normale",
+"nostro",
+"notare",
+"notevole",
+"notizia",
+"noto",
+"notte",
+"nudo",
+"nulla",
+"numero",
+"numeroso",
+"nuovo",
+"né",
+"o",
+"occasione",
+"occhio",
+"occorrere",
+"odore",
+"offendere",
+"offrire",
+"oggetto",
+"oggi",
+"ogni",
+"ognuno",
+"oh",
+"oltre",
+"ombra",
+"onore",
+"opera",
+"operaio",
+"operazione",
+"opinione",
+"opporre",
+"oppure",
+"ora",
+"oramai",
+"ordinare",
+"ordine",
+"orecchio",
+"organizzare",
+"origine",
+"oro",
+"ospedale",
+"osservare",
+"ottenere",
+"pace",
+"padre",
+"padrone",
+"paese",
+"pagare",
+"pagina",
+"palazzo",
+"pane",
+"papà",
+"parecchio",
+"parere",
+"parete",
+"parlare",
+"parola",
+"parte",
+"partecipare",
+"particolare",
+"partire",
+"partito",
+"passare",
+"passato",
+"passione",
+"passo",
+"patria",
+"paura",
+"pazzo",
+"peccato",
+"peggio",
+"pelle",
+"pena",
+"pensare",
+"pensiero",
+"per",
+"perché",
+"perciò",
+"perdere",
+"perfetto",
+"perfino",
+"pericolo",
+"pericoloso",
+"periodo",
+"permettere",
+"persona",
+"personaggio",
+"personale",
+"però",
+"pesare",
+"peso",
+"pezzo",
+"piacere",
+"piangere",
+"piano",
+"pianta",
+"piantare",
+"pianura",
+"piazza",
+"piccolo",
+"piede",
+"pieno",
+"pietra",
+"pietà",
+"piuttosto",
+"più",
+"poco",
+"poesia",
+"poeta",
+"poiché",
+"politica",
+"politico",
+"polizia",
+"pomeriggio",
+"ponte",
+"popolazione",
+"popolo",
+"porre",
+"porta",
+"portare",
+"porto",
+"posare",
+"posizione",
+"possedere",
+"possibile",
+"possibilità",
+"posto",
+"potenza",
+"potere",
+"povero",
+"pranzo",
+"prato",
+"preciso",
+"preferire",
+"pregare",
+"prendere",
+"preoccupare",
+"preparare",
+"presentare",
+"presente",
+"presenza",
+"presidente",
+"presso",
+"presto",
+"prevedere",
+"prezzo",
+"prima",
+"primo",
+"principale",
+"principe",
+"principio",
+"privato",
+"probabilmente",
+"problema",
+"procedere",
+"processo",
+"prodotto",
+"produrre",
+"produzione",
+"professore",
+"profondo",
+"programma",
+"promettere",
+"pronto",
+"proporre",
+"proposito",
+"proposta",
+"proprio",
+"prossimo",
+"prova",
+"provare",
+"provincia",
+"provocare",
+"provvedere",
+"pubblicare",
+"pubblico",
+"punta",
+"punto",
+"pure",
+"puro",
+"qua",
+"quadro",
+"qualche",
+"qualcosa",
+"qualcuno",
+"quale",
+"qualità",
+"qualsiasi",
+"qualunque",
+"quanto",
+"quarto",
+"quasi",
+"quello",
+"questione",
+"questo",
+"qui",
+"quindi",
+"raccogliere",
+"raccontare",
+"ragazza",
+"ragazzo",
+"raggiungere",
+"ragione",
+"rapido",
+"rapporto",
+"rappresentare",
+"reale",
+"realtà",
+"recare",
+"recente",
+"regione",
+"regno",
+"relazione",
+"religioso",
+"rendere",
+"repubblica",
+"resistere",
+"restare",
+"resto",
+"ricchezza",
+"ricco",
+"ricerca",
+"ricevere",
+"richiedere",
+"riconoscere",
+"ricordare",
+"ricordo",
+"ridere",
+"ridurre",
+"riempire",
+"rientrare",
+"riferire",
+"rifiutare",
+"riguardare",
+"rimanere",
+"rimettere",
+"ringraziare",
+"ripetere",
+"riportare",
+"riprendere",
+"risolvere",
+"rispetto",
+"rispondere",
+"risposta",
+"risultare",
+"risultato",
+"ritenere",
+"ritornare",
+"ritorno",
+"ritrovare",
+"riunire",
+"riuscire",
+"riva",
+"rivedere",
+"rivelare",
+"rivolgere",
+"rivoluzione",
+"roba",
+"romano",
+"rompere",
+"rosso",
+"russo",
+"sacrificio",
+"sacro",
+"sala",
+"salire",
+"saltare",
+"salutare",
+"salvare",
+"sangue",
+"sapere",
+"sbagliare",
+"scala",
+"scappare",
+"scegliere",
+"scena",
+"scendere",
+"scherzare",
+"scienza",
+"scomparire",
+"scopo",
+"scoppiare",
+"scoprire",
+"scorrere",
+"scrittore",
+"scrivere",
+"scuola",
+"scusare",
+"se",
+"secolo",
+"secondo",
+"sede",
+"sedere",
+"segnare",
+"segno",
+"segretario",
+"segreto",
+"seguire",
+"seguito",
+"sembrare",
+"semplice",
+"senso",
+"sentimento",
+"sentire",
+"senza",
+"sera",
+"sereno",
+"serie",
+"serio",
+"servire",
+"servizio",
+"settimana",
+"sforzo",
+"sguardo",
+"si",
+"sicurezza",
+"sicuro",
+"significare",
+"signora",
+"signore",
+"signorina",
+"silenzio",
+"simile",
+"sinistro",
+"sino",
+"sistema",
+"situazione",
+"smettere",
+"sociale",
+"società",
+"soffrire",
+"sognare",
+"sogno",
+"soldato",
+"sole",
+"solito",
+"solo",
+"soltanto",
+"soluzione",
+"sonno",
+"sopra",
+"soprattutto",
+"sorella",
+"sorgere",
+"sorprendere",
+"sorridere",
+"sorriso",
+"sostenere",
+"sottile",
+"sotto",
+"spalla",
+"spazio",
+"speciale",
+"specie",
+"spegnere",
+"speranza",
+"sperare",
+"spesa",
+"spesso",
+"spettacolo",
+"spiegare",
+"spingere",
+"spirito",
+"sposare",
+"stabilire",
+"staccare",
+"stagione",
+"stamattina",
+"stampa",
+"stanco",
+"stanza",
+"stare",
+"stasera",
+"stato",
+"stazione",
+"stella",
+"stesso",
+"storia",
+"storico",
+"strada",
+"straniero",
+"strano",
+"straordinario",
+"stringere",
+"strumento",
+"studiare",
+"studio",
+"stupido",
+"su",
+"subito",
+"succedere",
+"successo",
+"sud",
+"suo",
+"suonare",
+"superare",
+"superiore",
+"svegliare",
+"sviluppo",
+"svolgere",
+"sì",
+"tacere",
+"tagliare",
+"tale",
+"tanto",
+"tardi",
+"tavola",
+"tavolo",
+"teatro",
+"tecnico",
+"tedesco",
+"temere",
+"tempo",
+"tendere",
+"tenere",
+"tentare",
+"termine",
+"terreno",
+"territorio",
+"terzo",
+"testa",
+"tipo",
+"tirare",
+"titolo",
+"toccare",
+"togliere",
+"tono",
+"tornare",
+"tra",
+"tranquillo",
+"trarre",
+"trascinare",
+"trasformare",
+"trattare",
+"tratto",
+"treno",
+"triste",
+"troppo",
+"trovare",
+"tu",
+"tuo",
+"tuttavia",
+"tutto",
+"uccidere",
+"udire",
+"ufficiale",
+"ufficio",
+"uguale",
+"ultimo",
+"umano",
+"un",
+"unico",
+"unire",
+"università",
+"uno",
+"uomo",
+"usare",
+"uscire",
+"uso",
+"utile",
+"valere",
+"valle",
+"valore",
+"vario",
+"vasto",
+"vecchio",
+"vedere",
+"vendere",
+"venire",
+"vento",
+"veramente",
+"verde",
+"verità",
+"vero",
+"verso",
+"vestire",
+"vestito",
+"vi",
+"via",
+"viaggio",
+"vicino",
+"villa",
+"vincere",
+"vino",
+"visita",
+"viso",
+"vista",
+"vita",
+"vivere",
+"vivo",
+"voce",
+"voglia",
+"voi",
+"volare",
+"volere",
+"volgere",
+"volontà",
+"volta",
+"voltare",
+"volto",
+"vostro",
+"vuoto",
+"zia",
+"zio",
+"zitto",
+"zona"
+	];
+	
+	if (azzera) {
+		parole = [];
+	}
+	
+	for (i = 0; i < num; i++) {
+		var posiz = Math.floor(Math.random() * totparole.length);
+		var par = totparole[posiz];
+		if ($("#minparola").val() != "" && par.length < parseInt($("#minparola").val())) {
+			i--;
+			continue;
+		}
+		if ($("#maxparola").val() != "" && par.length > parseInt($("#maxparola").val())) {
+			i--;
+			continue;
+		}
+		if ($("#noaccentate").is(":checked") && ((par.includes("à")) || (par.includes("è")) || (par.includes("é")) || (par.includes("ì")) || (par.includes("ò")) || (par.includes("ù")))) {
+			i--;
+			continue;
+		}
+		if ($("#diverse").is(":checked") && parole.includes(par)) {
+			i--;
+			continue;
+		}
+		if ($("#iniupper").is(":checked") && Math.floor(Math.random() * 4) < 1) {
+			//mediamente 1 su 4 è accentata
+			par = par.charAt(0).toUpperCase() + par.slice(1);
+		}
+		parole.push(par);
+	}
+	
+}	
+
+</script>
+</html>
