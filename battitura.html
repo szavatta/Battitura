@@ -94,11 +94,12 @@ TEST DI BATTITURA
 </div>
 <div id="divopzioni">
 <label for="maxtempo">Secondi </label><input type="text" id="maxtempo" value="60" style="width:40px">
-<label for="minparola">Lung parola min </label><input type="text" id="minparola" value="" style="width:30px">
-<label for="maxparola">max </label><input type="text" id="maxparola" value="" style="width:30px">
-<label for="iniupper">Anche maiuscole</label><input type="checkbox" id="iniupper" style="position: relative; top: 5px; width: 20px; height: 20px">
-<label for="noaccentate">Senza accentate</label><input type="checkbox" id="noaccentate" style="position: relative; top: 5px; width: 20px; height: 20px">
-<label for="diverse">Diverse</label><input type="checkbox" id="diverse" style="position: relative; top: 5px; width: 20px; height: 20px">
+<label for="minparola" title="Lunghezza minima parole">Lung parola min </label><input type="text" id="minparola" value="" style="width:30px">
+<label for="maxparola" title="Lunghezza massima parole">max </label><input type="text" id="maxparola" value="" style="width:30px">
+<label for="iniupper" title="Inserisce casualmente anche le maiuscole ad inizio parola">Anche maiuscole</label><input type="checkbox" id="iniupper" style="position: relative; top: 5px; width: 20px; height: 20px">
+<label for="noaccentate" title="Non propone le accentate">Senza accentate</label><input type="checkbox" id="noaccentate" style="position: relative; top: 5px; width: 20px; height: 20px">
+<label for="diverse" title="Se selezionato non propone parole uguali che invece potrebbero capitare">Diverse</label><input type="checkbox" id="diverse" style="position: relative; top: 5px; width: 20px; height: 20px">
+<label for="nascondi" title="Nasconde gli errori durante la battitura">Nascondi</label><input type="checkbox" id="nascondi" style="position: relative; top: 5px; width: 20px; height: 20px">
 </div>
 <div id="divparoleout">
 <div id="divparole"></div>
@@ -111,7 +112,7 @@ TEST DI BATTITURA
 <div id="ricarica">
 <input type="button" id="btnricarica" value="Nuovo" style="font-size: xx-large">
 <input type="checkbox" id="stesseparole" style="width: 20px; height: 20px" title="Stesse parole">
-<label for="stesseparole">Stesse parole</label>
+<label for="stesseparole" title="Riesegue il test con le stesse parole della sessione precedente">Stesse parole</label>
 </div>
 </div>
 <div id="risultati" style="display: none">
@@ -211,14 +212,16 @@ $(document).ready(function () {
 			$('#inputparola').attr('readonly', true); 
 			clearInterval(interval)
 			VisualizzaTotali();
-		} else {
+		} else if ($("#nascondi").is(":checked") == false) {
 			if ($("#inputparola").val().trim() != parole[parolacorrente].substring(0, $("#inputparola").val().trim().length)) {
 				curpar.removeClass("highlight");
 				curpar.addClass("highlight-wrong");
 			} else {
 				curpar.removeClass("highlight-wrong");
 				curpar.addClass("highlight");
-				$("[wordnr="+parolacorrente+"]").html("<span class='letterebianche'>" + $("#inputparola").val() + "</span>" + parole[parolacorrente].substring($("#inputparola").val().length));
+				if ($("#nascondi").is(":checked") == false) {
+					$("[wordnr="+parolacorrente+"]").html("<span class='letterebianche'>" + $("#inputparola").val() + "</span>" + parole[parolacorrente].substring($("#inputparola").val().length));
+				}
 			}
 		}
 		//VisualizzaTotali();
